@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 import { ArrowUpRight, ChevronRight } from 'lucide-react'
@@ -21,6 +21,29 @@ const languages = ['中文', 'EN']
 function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [isLangOpen, setIsLangOpen] = useState(false)
   const [currentLang, setCurrentLang] = useState('中文')
+
+  // 打开侧边栏时锁定背景页面滚动
+  useEffect(() => {
+    if (!isOpen) return
+
+    const scrollY = window.scrollY
+    const { body } = document
+    const originalOverflow = body.style.overflow
+    const originalPosition = body.style.position
+
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.insetBlockStart = `-${scrollY}px`
+    body.style.inlineSize = '100%'
+
+    return () => {
+      body.style.overflow = originalOverflow
+      body.style.position = originalPosition
+      body.style.insetBlockStart = ''
+      body.style.inlineSize = ''
+      window.scrollTo(0, scrollY)
+    }
+  }, [isOpen])
 
   if (typeof document === 'undefined') return null
 
