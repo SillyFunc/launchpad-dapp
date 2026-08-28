@@ -14,7 +14,7 @@ interface SectionHeaderProps {
 function SectionHeader({ title, required = false }: SectionHeaderProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-gradient-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B]">
+      <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B]">
         <img src={checkIcon} alt="" className="h-2 w-2" />
       </div>
       <h2 className="text-sm font-bold text-white">
@@ -115,7 +115,7 @@ export default function LaunchPage() {
   }
 
   return (
-    <div className="relative mx-auto flex w-full flex-col pb-10">
+    <div className="relative mx-auto flex w-full flex-col pb-28">
       {/* Page Title Row */}
       <div className="flex items-center gap-2 py-4">
         <button
@@ -352,13 +352,14 @@ export default function LaunchPage() {
           </div>
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-white/60 bg-gradient-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B] text-base font-bold text-white shadow-[0_3px_0_0_#963000] transition-all active:translate-y-0.5"
-        >
-          创建代币
-        </button>
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-t-white/10 bg-[#131516] p-4">
+          <button
+            type="submit"
+            className="flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-white/60 bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B] text-base font-bold text-white shadow-[0_3px_0_0_#963000] transition-all active:translate-y-0.5"
+          >
+            创建代币
+          </button>
+        </div>
       </form>
     </div>
   )
