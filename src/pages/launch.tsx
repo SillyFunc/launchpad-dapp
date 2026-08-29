@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react'
 
 import sectionIcon from '../assets/icons/section-title-icon.svg'
 import uploadIcon from '../assets/upload-icon.svg'
-import titleBackArrow from '../assets/title-back-arrow.svg'
+import titleBackArrow from '../assets/icons/back-arrow.svg'
 
 const optionalUrl = z.union([
   z.literal(''),
@@ -174,32 +174,30 @@ export const LaunchPage = () => {
   return (
     <>
       <form
-        className="relative mx-auto flex w-full flex-col pb-28"
+        className="relative mx-auto flex w-full flex-col pb-28 pt-6"
         onSubmit={(e) => {
           e.preventDefault()
           e.stopPropagation()
           void form.handleSubmit()
         }}
       >
-        <div className="flex items-center gap-2 py-4">
+        <div className="flex items-center gap-3 mb-4">
           <button
             type="button"
             aria-label="返回"
             onClick={() => window.history.back()}
-            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-xs hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#FE810B]"
+            className="flex size-6 shrink-0 items-center justify-center rounded-xs hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#FE810B]"
           >
             <img
               src={titleBackArrow}
               alt=""
               aria-hidden="true"
-              width={16}
-              height={16}
-              className="h-4 w-4"
+              className="w-full h-full object-cover"
             />
           </button>
-          <h1 className="text-sm font-bold text-white tracking-wide">
-            创建税收代币
-          </h1>
+          <span className="text-lg font-semibold text-white tracking-wide">
+            创建代币
+          </span>
         </div>
 
         <div className="flex flex-col rounded border border-[#484b51] bg-[#131516]">
