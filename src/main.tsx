@@ -5,7 +5,6 @@ import { Web3Provider } from './providers/web3-provider.tsx'
 import { RouterProvider } from 'react-router'
 
 import router from './router'
-import '@fontsource/space-mono'
 import './index.css'
 import '@rainbow-me/rainbowkit/styles.css'
 
