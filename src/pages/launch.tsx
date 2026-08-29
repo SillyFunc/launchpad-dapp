@@ -1,11 +1,13 @@
-import { useState, useRef, type ChangeEvent } from 'react'
+import { useEffect, useState, useRef, type ChangeEvent } from 'react'
+import { Link } from 'react-router'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
+import { isAddress } from 'viem'
+import { useConnection } from 'wagmi'
+import { Loader2 } from 'lucide-react'
 
 import sectionIcon from '../assets/icons/section-title-icon.svg'
-import bnbIcon from '../assets/bnb-icon.svg'
 import uploadIcon from '../assets/upload-icon.svg'
-import chevronIcon from '../assets/chevron-icon.svg'
 import titleBackArrow from '../assets/title-back-arrow.svg'
 
 const optionalUrl = z.union([
@@ -33,6 +35,12 @@ const protectionPeriodSchema = z
     return v !== '' && Number.isInteger(n) && n >= 0 && n <= 365
   }, '请输入 0-365 之间的整数')
 
+const evmAddressSchema = z
+  .string()
+  .trim()
+  .min(1, '请输入税费接收地址')
+  .refine((val) => !val || isAddress(val), '请输入合法的 EVM 地址')
+
 const linkFields = [
   { label: 'Telegram 链接', key: 'telegram' },
   { label: 'Twitter 链接', key: 'twitter' },
@@ -50,7 +58,14 @@ interface SectionHeaderProps {
 function SectionHeader({ title, required = false }: SectionHeaderProps) {
   return (
     <div className="flex items-center gap-2 relative">
-      <img src={sectionIcon} className="size-4 absolute -left-6 align-middle" />
+      <img
+        src={sectionIcon}
+        alt=""
+        aria-hidden="true"
+        width={16}
+        height={16}
+        className="size-4 absolute -left-6 align-middle"
+      />
       <h2 className="text-base font-normal leading-normal text-white uppercase pl-1.5">
         {title}
         {required && <span className="ml-0.5 text-[#f7594b]">*</span>}
@@ -95,6 +110,7 @@ function TaxSlider({ label, value, onChange }: TaxSliderProps) {
             max={10}
             step={1}
             value={value}
+            aria-label={label}
             onChange={(e) => onChange(Number(e.target.value))}
             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
@@ -109,8 +125,8 @@ function TaxSlider({ label, value, onChange }: TaxSliderProps) {
 }
 
 export const LaunchPage = () => {
+  const { address } = useConnection()
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [selectedPercent, setSelectedPercent] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const form = useForm({
@@ -118,6 +134,7 @@ export const LaunchPage = () => {
       name: '',
       symbol: '',
       description: '',
+      feeRecipient: address ?? '',
       buyTax: 0,
       sellTax: 0,
       buyAmount: '0',
@@ -137,6 +154,13 @@ export const LaunchPage = () => {
     },
   })
 
+  // 钱包连接状态变化且表单尚未填入地址时，自动回显钱包地址
+  useEffect(() => {
+    if (address && !form.getFieldValue('feeRecipient')) {
+      form.setFieldValue('feeRecipient', address)
+    }
+  }, [address, form])
+
   // 初始挂载时校验（onMount 不会触发 isTouched，错误在用户交互前不显示），
   // 这样才能让“验证不过 → 按钮禁用”在初始就生效
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -145,17 +169,6 @@ export const LaunchPage = () => {
       const url = URL.createObjectURL(file)
       setLogoPreview(url)
     }
-  }
-
-  const handlePercentClick = (percent: string) => {
-    setSelectedPercent(percent)
-    const amount = {
-      '25%': '4.075',
-      '50%': '8.15',
-      '75%': '12.225',
-      '100%': '16.3',
-    }[percent]
-    if (amount) form.setFieldValue('buyAmount', amount)
   }
 
   return (
@@ -168,13 +181,21 @@ export const LaunchPage = () => {
           void form.handleSubmit()
         }}
       >
-        {/* Page Title Row */}
         <div className="flex items-center gap-2 py-4">
           <button
             type="button"
-            className="flex h-4 w-4 shrink-0 items-center justify-center hover:opacity-80"
+            aria-label="返回"
+            onClick={() => window.history.back()}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-xs hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#FE810B]"
           >
-            <img src={titleBackArrow} alt="Back" className="h-4 w-4" />
+            <img
+              src={titleBackArrow}
+              alt=""
+              aria-hidden="true"
+              width={16}
+              height={16}
+              className="h-4 w-4"
+            />
           </button>
           <h1 className="text-sm font-bold text-white tracking-wide">
             创建税收代币
@@ -191,12 +212,12 @@ export const LaunchPage = () => {
                 在发布前锁定您的代币合约的地址。
               </div>
             </div>
-            <button
-              type="button"
-              className="flex items-center justify-center rounded border border-[#FE810B] px-2.5 py-1.5 text-xs font-bold text-[#FE810B] transition-colors hover:bg-[#FE810B]/10"
+            <Link
+              to="/prelaunch"
+              className="flex items-center justify-center rounded border border-[#FE810B] px-2.5 py-1.5 text-xs font-bold text-[#FE810B] transition-colors hover:bg-[#FE810B]/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#FE810B]"
             >
               保留 CA →
-            </button>
+            </Link>
           </div>
 
           <div className="flex flex-col space-y-10 p-4">
@@ -213,19 +234,25 @@ export const LaunchPage = () => {
                 />
                 <button
                   type="button"
+                  aria-label="上传代币 Logo"
                   onClick={() => fileInputRef.current?.click()}
-                  className="group relative flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-neutral-700 bg-[#111111] transition-colors hover:border-[#FE810B]"
+                  className="group relative flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-neutral-700 bg-[#111111] transition-colors hover:border-[#FE810B] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#FE810B]"
                 >
                   {logoPreview ? (
                     <img
                       src={logoPreview}
-                      alt="Token Logo"
+                      alt="代币 Logo 预览"
+                      width={80}
+                      height={80}
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     <img
                       src={uploadIcon}
-                      alt="Upload"
+                      alt=""
+                      aria-hidden="true"
+                      width={28}
+                      height={28}
                       className="h-7 w-7 opacity-70 transition-opacity group-hover:opacity-100"
                     />
                   )}
@@ -235,7 +262,7 @@ export const LaunchPage = () => {
                     // 支持的文件格式
                   </span>
                   <span className="mt-1 text-xs leading-relaxed text-neutral-500">
-                    PNG、JPEG、SVG、GIF、文件大小限制 3MB
+                    PNG、JPEG、SVG、GIF、文件大小限制 3&nbsp;MB
                   </span>
                 </div>
               </div>
@@ -257,7 +284,11 @@ export const LaunchPage = () => {
                     </div>
                     <input
                       id={field.name}
+                      name={field.name}
                       type="text"
+                      placeholder=""
+                      autoComplete="off"
+                      spellCheck={false}
                       maxLength={24}
                       value={field.state.value}
                       onBlur={field.handleBlur}
@@ -287,7 +318,11 @@ export const LaunchPage = () => {
                     </div>
                     <input
                       id={field.name}
+                      name={field.name}
                       type="text"
+                      placeholder=""
+                      autoComplete="off"
+                      spellCheck={false}
                       maxLength={15}
                       value={field.state.value}
                       onBlur={field.handleBlur}
@@ -313,6 +348,10 @@ export const LaunchPage = () => {
                     </label>
                     <textarea
                       id={field.name}
+                      name={field.name}
+                      placeholder=""
+                      autoComplete="off"
+                      spellCheck={false}
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -369,14 +408,53 @@ export const LaunchPage = () => {
 
             <div className="flex flex-col gap-6">
               <SectionHeader title="税费接收地址" required />
-              <input
-                type="text"
-                className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
-              />
+              <form.Field
+                name="feeRecipient"
+                validators={{
+                  onMount: evmAddressSchema,
+                  onChange: evmAddressSchema,
+                }}
+              >
+                {(field) => {
+                  const errorMsg = field.state.meta.errors
+                    .map((e) =>
+                      typeof e === 'string'
+                        ? e
+                        : (e as { message?: unknown }).message,
+                    )
+                    .filter((m): m is string => typeof m === 'string')
+                    .join(', ')
+                  const showError =
+                    Boolean(errorMsg) &&
+                    (field.state.meta.isTouched ||
+                      field.state.value.trim().length > 0)
+
+                  return (
+                    <div className="flex flex-col">
+                      <input
+                        id={field.name}
+                        name={field.name}
+                        type="text"
+                        aria-label="税费接收地址"
+                        placeholder=""
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+                      />
+                      {showError && (
+                        <p className="text-xs text-red-500 mt-1">{errorMsg}</p>
+                      )}
+                    </div>
+                  )
+                }}
+              </form.Field>
             </div>
 
             <div className="flex flex-col">
-              <SectionHeader title="防「挖、提、卖」保护期" />
+              <SectionHeader title="防「挖、提、卖」保护期" required />
               <form.Field
                 name="protectionPeriod"
                 validators={{ onChange: protectionPeriodSchema }}
@@ -399,7 +477,8 @@ export const LaunchPage = () => {
                         id={field.name}
                         name={field.name}
                         type="number"
-                        placeholder="请输入"
+                        placeholder=""
+                        autoComplete="off"
                         step={1}
                         min={0}
                         max={365}
@@ -418,9 +497,9 @@ export const LaunchPage = () => {
                 }}
               </form.Field>
               <p className="text-xs text-[#84888c] mt-2">
-                在防「挖、提、賣」保護期內，用戶將無法向部分 V3
-                流動性池添加流動性，該功能的作用是在保護期內保證交易盡量發生在稅收流動性池，提高代幣稅收收入的穩定性。設為
-                0 天則不啟用保護期。
+                在防「挖、提、卖」保护期内，用户将无法向部分 V3
+                流动性池添加流动性，该功能的作用是在保护期内保证交易尽量发生在税收流动性池，提高代币税收收入的稳定性。设为
+                0 天则不启用保护期。
               </p>
             </div>
 
@@ -528,8 +607,11 @@ export const LaunchPage = () => {
                         <input
                           id={field.name}
                           name={field.name}
-                          type="text"
-                          placeholder="可选"
+                          type="url"
+                          inputMode="url"
+                          placeholder=""
+                          autoComplete="off"
+                          spellCheck={false}
                           value={field.state.value}
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
@@ -547,16 +629,24 @@ export const LaunchPage = () => {
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-t-white/10 bg-[#131516] p-4">
           <form.Subscribe
             selector={(state) => ({
-              disabled: !state.isValid || state.isSubmitting,
+              canSubmit: state.isValid && !state.isSubmitting,
+              isSubmitting: state.isSubmitting,
             })}
           >
-            {({ disabled }) => (
+            {({ canSubmit, isSubmitting }) => (
               <button
                 type="submit"
-                disabled={disabled}
-                className="flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-white/60 bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B] text-base font-bold text-white shadow-[0_3px_0_0_#963000] transition-all active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                disabled={!canSubmit}
+                className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/60 bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B] text-base font-bold text-white shadow-[0_3px_0_0_#963000] transition-[transform,opacity] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA546]"
               >
-                创建代币
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-5 animate-spin" />
+                    <span>创建中…</span>
+                  </>
+                ) : (
+                  <span>创建代币</span>
+                )}
               </button>
             )}
           </form.Subscribe>
@@ -565,3 +655,5 @@ export const LaunchPage = () => {
     </>
   )
 }
+
+export default LaunchPage
