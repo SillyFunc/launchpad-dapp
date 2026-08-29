@@ -324,7 +324,7 @@ export const LaunchPage = () => {
               </form.Field>
             </div>
 
-            <div className="flex flex-col gap-6">
+            {/* <div className="flex flex-col gap-6">
               <SectionHeader title="支付代币" required />
               <button
                 type="button"
@@ -333,7 +333,7 @@ export const LaunchPage = () => {
                 <img src={bnbIcon} alt="BNB" className="h-4 w-4" />
                 <span className="text-sm font-medium text-[#FB5F16]">BNB</span>
               </button>
-            </div>
+            </div> */}
 
             <div className="flex flex-col gap-6">
               <SectionHeader title="税率设置" />
@@ -368,7 +368,7 @@ export const LaunchPage = () => {
             </div>
 
             <div className="flex flex-col gap-6">
-              <SectionHeader title="接收地址" required />
+              <SectionHeader title="税费接收地址" required />
               <input
                 type="text"
                 className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
@@ -376,7 +376,7 @@ export const LaunchPage = () => {
             </div>
 
             <div className="flex flex-col">
-              <SectionHeader title="防「挖、提、賣」保護期" />
+              <SectionHeader title="防「挖、提、卖」保护期" />
               <form.Field
                 name="protectionPeriod"
                 validators={{ onChange: protectionPeriodSchema }}
