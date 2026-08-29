@@ -1,10 +1,46 @@
-import { useState, useRef, type ChangeEvent, type FormEvent } from 'react'
+import { useState, useRef, type ChangeEvent } from 'react'
+import { useForm } from '@tanstack/react-form'
+import { z } from 'zod'
 
-import checkIcon from '../assets/check-icon.svg'
+import sectionIcon from '../assets/icons/section-title-icon.svg'
 import bnbIcon from '../assets/bnb-icon.svg'
 import uploadIcon from '../assets/upload-icon.svg'
 import chevronIcon from '../assets/chevron-icon.svg'
 import titleBackArrow from '../assets/title-back-arrow.svg'
+
+const optionalUrl = z.union([
+  z.literal(''),
+  z.url({ error: '请输入合法的 URL' }),
+])
+
+const nameSchema = z
+  .string()
+  .trim()
+  .min(1, '请输入代币名称')
+  .max(24, '代币名称最多 24 个字符')
+
+const symbolSchema = z
+  .string()
+  .trim()
+  .min(1, '请输入代币符号')
+  .max(15, '代币符号最多 15 个字符')
+
+const protectionPeriodSchema = z
+  .string()
+  .trim()
+  .refine((v) => {
+    const n = Number(v)
+    return v !== '' && Number.isInteger(n) && n >= 0 && n <= 365
+  }, '请输入 0-365 之间的整数')
+
+const linkFields = [
+  { label: 'Telegram 链接', key: 'telegram' },
+  { label: 'Twitter 链接', key: 'twitter' },
+  { label: 'GitHub 链接', key: 'github' },
+  { label: 'YouTube 链接', key: 'youtube' },
+  { label: 'DeBox 链接', key: 'debox' },
+  { label: '网站链接', key: 'website' },
+] as const
 
 interface SectionHeaderProps {
   title: string
@@ -13,13 +49,11 @@ interface SectionHeaderProps {
 
 function SectionHeader({ title, required = false }: SectionHeaderProps) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B]">
-        <img src={checkIcon} alt="" className="h-2 w-2" />
-      </div>
-      <h2 className="text-sm font-bold text-white">
+    <div className="flex items-center gap-2 relative">
+      <img src={sectionIcon} className="size-4 absolute -left-6 align-middle" />
+      <h2 className="text-base font-normal leading-normal text-white uppercase pl-1.5">
         {title}
-        {required && <span className="ml-0.5 text-rose-500">*</span>}
+        {required && <span className="ml-0.5 text-[#f7594b]">*</span>}
       </h2>
     </div>
   )
@@ -36,8 +70,8 @@ function TaxSlider({ label, value, onChange }: TaxSliderProps) {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-0.5">
-          <span className="text-xs text-white">{label}</span>
-          <span className="text-xs text-rose-500">*</span>
+          <span className="text-sm text-white">{label}</span>
+          <span className="text-sm text-[#f7594b]">*</span>
         </div>
         <div className="flex h-8 w-12 items-center justify-center rounded border border-white/30 bg-[#141517] text-sm font-bold text-[#FB5F16]">
           {value}%
@@ -74,26 +108,37 @@ function TaxSlider({ label, value, onChange }: TaxSliderProps) {
   )
 }
 
-export default function LaunchPage() {
+export const LaunchPage = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [symbol, setSymbol] = useState('')
-  const [description, setDescription] = useState('')
-  const [buyTax, setBuyTax] = useState(0)
-  const [sellTax, setSellTax] = useState(0)
-  const [buyAmount, setBuyAmount] = useState('0')
   const [selectedPercent, setSelectedPercent] = useState<string | null>(null)
-  const [links, setLinks] = useState({
-    telegram: '',
-    twitter: '',
-    github: '',
-    youtube: '',
-    debox: '',
-    website: '',
-  })
-
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const form = useForm({
+    defaultValues: {
+      name: '',
+      symbol: '',
+      description: '',
+      buyTax: 0,
+      sellTax: 0,
+      buyAmount: '0',
+      protectionPeriod: '30',
+      links: {
+        telegram: '',
+        twitter: '',
+        github: '',
+        youtube: '',
+        debox: '',
+        website: '',
+      },
+    },
+    onSubmit: async ({ value }) => {
+      // TODO: 链上创建代币
+      console.log(value)
+    },
+  })
+
+  // 初始挂载时校验（onMount 不会触发 isTouched，错误在用户交互前不显示），
+  // 这样才能让“验证不过 → 按钮禁用”在初始就生效
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -104,36 +149,40 @@ export default function LaunchPage() {
 
   const handlePercentClick = (percent: string) => {
     setSelectedPercent(percent)
-    if (percent === '25%') setBuyAmount('4.075')
-    else if (percent === '50%') setBuyAmount('8.15')
-    else if (percent === '75%') setBuyAmount('12.225')
-    else if (percent === '100%') setBuyAmount('16.3')
-  }
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault()
+    const amount = {
+      '25%': '4.075',
+      '50%': '8.15',
+      '75%': '12.225',
+      '100%': '16.3',
+    }[percent]
+    if (amount) form.setFieldValue('buyAmount', amount)
   }
 
   return (
-    <div className="relative mx-auto flex w-full flex-col pb-28">
-      {/* Page Title Row */}
-      <div className="flex items-center gap-2 py-4">
-        <button
-          type="button"
-          className="flex h-4 w-4 shrink-0 items-center justify-center hover:opacity-80"
-        >
-          <img src={titleBackArrow} alt="Back" className="h-4 w-4" />
-        </button>
-        <h1 className="text-sm font-bold text-white tracking-wide">
-          创建税收代币
-        </h1>
-      </div>
+    <>
+      <form
+        className="relative mx-auto flex w-full flex-col pb-28"
+        onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          void form.handleSubmit()
+        }}
+      >
+        {/* Page Title Row */}
+        <div className="flex items-center gap-2 py-4">
+          <button
+            type="button"
+            className="flex h-4 w-4 shrink-0 items-center justify-center hover:opacity-80"
+          >
+            <img src={titleBackArrow} alt="Back" className="h-4 w-4" />
+          </button>
+          <h1 className="text-sm font-bold text-white tracking-wide">
+            创建税收代币
+          </h1>
+        </div>
 
-      {/* Main Content Card */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-5 rounded border border-white/10 bg-[#141517] p-4">
-          {/* Reserve CA banner */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex flex-col rounded border border-[#484b51] bg-[#131516]">
+          <div className="flex items-center justify-between border-b border-b-[#484b51] p-4">
             <div>
               <div className="text-xs font-bold text-white">
                 保留您的代币 CA
@@ -150,217 +199,369 @@ export default function LaunchPage() {
             </button>
           </div>
 
-          {/* Section 1: Basic Information */}
-          <div className="flex flex-col gap-4">
-            <SectionHeader title="基本信息" />
+          <div className="flex flex-col space-y-10 p-4">
+            <div className="flex flex-col gap-6">
+              <SectionHeader title="基本信息" />
 
-            {/* Logo Upload */}
-            <div className="flex items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group relative flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-neutral-700 bg-[#111111] transition-colors hover:border-[#FE810B]"
+                >
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt="Token Logo"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={uploadIcon}
+                      alt="Upload"
+                      className="h-7 w-7 opacity-70 transition-opacity group-hover:opacity-100"
+                    />
+                  )}
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-[#FB5F16]">
+                    // 支持的文件格式
+                  </span>
+                  <span className="mt-1 text-xs leading-relaxed text-neutral-500">
+                    PNG、JPEG、SVG、GIF、文件大小限制 3MB
+                  </span>
+                </div>
+              </div>
+
+              <form.Field
+                name="name"
+                validators={{ onMount: nameSchema, onChange: nameSchema }}
+              >
+                {(field) => (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-0.5">
+                      <label
+                        htmlFor={field.name}
+                        className="text-sm text-white"
+                      >
+                        代币名称
+                      </label>
+                      <span className="text-xs text-[#f7594b]">*</span>
+                    </div>
+                    <input
+                      id={field.name}
+                      type="text"
+                      maxLength={24}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) =>
+                        field.handleChange(e.target.value.slice(0, 24))
+                      }
+                      className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+                    />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field
+                name="symbol"
+                validators={{ onMount: symbolSchema, onChange: symbolSchema }}
+              >
+                {(field) => (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-0.5">
+                      <label
+                        htmlFor={field.name}
+                        className="text-sm text-white"
+                      >
+                        代币符號
+                      </label>
+                      <span className="text-xs text-[#f7594b]">*</span>
+                    </div>
+                    <input
+                      id={field.name}
+                      type="text"
+                      maxLength={15}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) =>
+                        field.handleChange(e.target.value.slice(0, 15))
+                      }
+                      className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+                    />
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field
+                name="description"
+                validators={{
+                  onChange: z.string().max(500, '描述最多 500 个字符'),
+                }}
+              >
+                {(field) => (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor={field.name} className="text-sm text-white">
+                      代币描述
+                    </label>
+                    <textarea
+                      id={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      rows={4}
+                      className="w-full resize-none p-3 min-h-30 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+                    />
+                  </div>
+                )}
+              </form.Field>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <SectionHeader title="支付代币" required />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="group relative flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-neutral-700 bg-[#111111] transition-colors hover:border-[#FE810B]"
+                className="flex h-9 w-36 items-center justify-center gap-2 rounded border border-[#FE810B] bg-[#FE810B]/5 transition-colors hover:bg-[#FE810B]/10"
               >
-                {logoPreview ? (
-                  <img
-                    src={logoPreview}
-                    alt="Token Logo"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <img
-                    src={uploadIcon}
-                    alt="Upload"
-                    className="h-7 w-7 opacity-70 transition-opacity group-hover:opacity-100"
+                <img src={bnbIcon} alt="BNB" className="h-4 w-4" />
+                <span className="text-sm font-medium text-[#FB5F16]">BNB</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <SectionHeader title="税率设置" />
+              <form.Field
+                name="buyTax"
+                validators={{
+                  onChange: z.number().min(0).max(10, '买入税率最多 10%'),
+                }}
+              >
+                {(field) => (
+                  <TaxSlider
+                    label="买入税率"
+                    value={field.state.value}
+                    onChange={field.handleChange}
                   />
                 )}
-              </button>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-[#FB5F16]">
-                  // 支持的文件格式
-                </span>
-                <span className="mt-1 text-xs leading-relaxed text-neutral-500">
-                  PNG、JPEG、SVG、GIF、文件大小限制 3MB
-                </span>
-              </div>
-            </div>
-
-            {/* Token Name */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-0.5">
-                <label className="text-xs text-white">代币名称</label>
-                <span className="text-xs text-rose-500">*</span>
-              </div>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder=""
-                className="h-11 w-full rounded border border-neutral-800 bg-[#0F0F0F] px-3 text-sm text-white focus:border-[#FE810B] focus:outline-none"
-              />
-            </div>
-
-            {/* Token Symbol */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-0.5">
-                <label className="text-xs text-white">代币符號</label>
-                <span className="text-xs text-rose-500">*</span>
-              </div>
-              <input
-                type="text"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                placeholder=""
-                className="h-11 w-full rounded border border-neutral-800 bg-[#0F0F0F] px-3 text-sm text-white focus:border-[#FE810B] focus:outline-none"
-              />
-            </div>
-
-            {/* Token Description */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-white">代币描述</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className="w-full resize-none rounded border border-neutral-800 bg-[#0F0F0F] p-3 text-sm text-white focus:border-[#FE810B] focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Section 2: Payment Token */}
-          <div className="flex flex-col gap-3">
-            <SectionHeader title="支付代币" required />
-            <button
-              type="button"
-              className="flex h-9 w-36 items-center justify-center gap-2 rounded border border-[#FE810B] bg-[#FE810B]/5 transition-colors hover:bg-[#FE810B]/10"
-            >
-              <img src={bnbIcon} alt="BNB" className="h-4 w-4" />
-              <span className="text-sm font-medium text-[#FB5F16]">BNB</span>
-            </button>
-          </div>
-
-          {/* Section 3: Tax Settings */}
-          <div className="flex flex-col gap-4">
-            <SectionHeader title="税率设置" />
-            <TaxSlider label="买入税率" value={buyTax} onChange={setBuyTax} />
-            <TaxSlider label="卖出税率" value={sellTax} onChange={setSellTax} />
-          </div>
-
-          {/* Section 4: Creator Token Purchase */}
-          <div className="flex flex-col gap-3">
-            <SectionHeader title="创建者代币购买（可选）" />
-            <p className="text-xs leading-relaxed text-white/60">
-              创建者少量买入有助于减少抢跑，提高代币发行安全性。最多可购买 800M
-              枚代币；超额支付将自动退回。部署成本：约 0.001 BNB
-            </p>
-
-            {/* Balance */}
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-neutral-500">余额：</span>
-              <span className="font-medium text-white">0 BNB</span>
-            </div>
-
-            {/* Amount input */}
-            <div className="flex h-11 items-center rounded border border-white/30 bg-[#141517] px-3">
-              <input
-                type="text"
-                value={buyAmount}
-                onChange={(e) => {
-                  setBuyAmount(e.target.value)
-                  setSelectedPercent(null)
+              </form.Field>
+              <form.Field
+                name="sellTax"
+                validators={{
+                  onChange: z.number().min(0).max(10, '卖出税率最多 10%'),
                 }}
-                className="flex-1 bg-transparent text-sm font-medium text-white placeholder-neutral-500 focus:outline-none"
-              />
-              <div className="mx-2 h-5 w-px bg-white/10" />
-              <div className="flex items-center gap-1.5">
-                <img src={chevronIcon} alt="" className="h-3 w-3" />
-                <img src={bnbIcon} alt="BNB" className="h-4 w-4" />
-                <span className="text-sm font-medium text-white">BNB</span>
-              </div>
-            </div>
-
-            {/* Percent quick select */}
-            <div className="grid grid-cols-4 gap-2">
-              {(['25%', '50%', '75%', '100%'] as const).map((percent) => {
-                const isSelected = selectedPercent === percent
-                return (
-                  <button
-                    key={percent}
-                    type="button"
-                    onClick={() => handlePercentClick(percent)}
-                    className={`flex h-9 items-center justify-center rounded-lg text-xs font-semibold transition-all ${
-                      isSelected
-                        ? 'border border-[#FE810B] bg-neutral-800 text-[#FE810B]'
-                        : 'border border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
-                    }`}
-                  >
-                    {percent}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Stats */}
-            <div className="flex items-center justify-between text-xs">
-              <div>
-                <span className="text-neutral-500">预计收到：</span>
-                <span className="font-medium text-white">0 代币</span>
-              </div>
-              <div>
-                <span className="text-neutral-500">最高：</span>
-                <span className="font-medium text-white">16.3 BNB</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 5: Optional Links */}
-          <div className="flex flex-col gap-4">
-            <SectionHeader title="可选链接" />
-            <div className="flex flex-col gap-3">
-              {[
-                { label: 'Telegram 链接', key: 'telegram' },
-                { label: 'Twitter 链接', key: 'twitter' },
-                { label: 'GitHub 链接', key: 'github' },
-                { label: 'YouTube 链接', key: 'youtube' },
-                { label: 'DeBox 链接', key: 'debox' },
-                { label: '网站链接', key: 'website' },
-              ].map((item) => (
-                <div key={item.key} className="flex flex-col gap-1.5">
-                  <label className="text-xs text-white">{item.label}</label>
-                  <input
-                    type="text"
-                    placeholder="可选"
-                    value={links[item.key as keyof typeof links]}
-                    onChange={(e) =>
-                      setLinks((prev) => ({
-                        ...prev,
-                        [item.key]: e.target.value,
-                      }))
-                    }
-                    className="h-11 w-full rounded-lg border border-neutral-800 bg-[#0F0F0F] px-3 text-sm text-white placeholder-neutral-600 focus:border-[#FE810B] focus:outline-none"
+              >
+                {(field) => (
+                  <TaxSlider
+                    label="卖出税率"
+                    value={field.state.value}
+                    onChange={field.handleChange}
                   />
+                )}
+              </form.Field>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <SectionHeader title="接收地址" required />
+              <input
+                type="text"
+                className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <SectionHeader title="防「挖、提、賣」保護期" />
+              <form.Field
+                name="protectionPeriod"
+                validators={{ onChange: protectionPeriodSchema }}
+              >
+                {(field) => {
+                  const errorMsg = field.state.meta.errors
+                    .map((e) =>
+                      typeof e === 'string'
+                        ? e
+                        : (e as { message?: unknown }).message,
+                    )
+                    .filter((m): m is string => typeof m === 'string')
+                    .join(', ')
+                  return (
+                    <div className="flex flex-col items-end mt-6">
+                      <span className="text-xs text-[#FE810B] font-semibold mb-2">
+                        {field.state.value}天
+                      </span>
+                      <input
+                        id={field.name}
+                        name={field.name}
+                        type="number"
+                        placeholder="请输入"
+                        step={1}
+                        min={0}
+                        max={365}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+                      />
+                      {errorMsg && (
+                        <p className="self-stretch text-xs text-red-500 mt-1">
+                          {errorMsg}
+                        </p>
+                      )}
+                    </div>
+                  )
+                }}
+              </form.Field>
+              <p className="text-xs text-[#84888c] mt-2">
+                在防「挖、提、賣」保護期內，用戶將無法向部分 V3
+                流動性池添加流動性，該功能的作用是在保護期內保證交易盡量發生在稅收流動性池，提高代幣稅收收入的穩定性。設為
+                0 天則不啟用保護期。
+              </p>
+            </div>
+
+            {/* <div className="flex flex-col gap-3">
+              <SectionHeader title="创建者代币购买（可选）" />
+              <p className="text-xs leading-relaxed text-white/60">
+                创建者少量买入有助于减少抢跑，提高代币发行安全性。最多可购买
+                800M 枚代币；超额支付将自动退回。部署成本：约 0.001 BNB
+              </p>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500">余额：</span>
+                <span className="font-medium text-white">0 BNB</span>
+              </div>
+
+              <form.Field
+                name="buyAmount"
+                validators={{
+                  onChange: ({ value }) => {
+                    const num = Number(value)
+                    if (value.trim() === '' || Number.isNaN(num))
+                      return '请输入合法的金额'
+                    if (num < 0) return '金额不能为负数'
+                    if (num > 16.3) return '金额不能超过 16.3 BNB'
+                    return undefined
+                  },
+                }}
+              >
+                {(field) => (
+                  <>
+                    <div className="flex h-11 items-center rounded border border-white/30 bg-[#141517] px-3">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => {
+                          field.handleChange(e.target.value)
+                          setSelectedPercent(null)
+                        }}
+                        className="flex-1 bg-transparent text-sm font-medium text-white placeholder-neutral-500 focus:outline-none"
+                      />
+                      <div className="mx-2 h-5 w-px bg-white/10" />
+                      <div className="flex items-center gap-1.5">
+                        <img src={chevronIcon} alt="" className="h-3 w-3" />
+                        <img src={bnbIcon} alt="BNB" className="h-4 w-4" />
+                        <span className="text-sm font-medium text-white">
+                          BNB
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </form.Field>
+
+              <div className="grid grid-cols-4 gap-2">
+                {(['25%', '50%', '75%', '100%'] as const).map((percent) => {
+                  const isSelected = selectedPercent === percent
+                  return (
+                    <button
+                      key={percent}
+                      type="button"
+                      onClick={() => handlePercentClick(percent)}
+                      className={`flex h-9 items-center justify-center rounded-lg text-xs font-semibold transition-all ${
+                        isSelected
+                          ? 'border border-[#FE810B] bg-neutral-800 text-[#FE810B]'
+                          : 'border border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      {percent}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-neutral-500">预计收到：</span>
+                  <span className="font-medium text-white">0 代币</span>
                 </div>
-              ))}
+                <div>
+                  <span className="text-neutral-500">最高：</span>
+                  <span className="font-medium text-white">16.3 BNB</span>
+                </div>
+              </div>
+            </div> */}
+
+            <div className="flex flex-col">
+              <SectionHeader title="可选链接" />
+              <div className="flex flex-col gap-6 mt-6">
+                {linkFields.map((item) => (
+                  <form.Field
+                    key={item.key}
+                    name={`links.${item.key}`}
+                    validators={{ onChange: optionalUrl }}
+                  >
+                    {(field) => (
+                      <div className="flex flex-col">
+                        <label
+                          htmlFor={field.name}
+                          className="text-sm text-white mb-2"
+                        >
+                          {item.label}
+                        </label>
+                        <input
+                          id={field.name}
+                          name={field.name}
+                          type="text"
+                          placeholder="可选"
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(e) => field.handleChange(e.target.value)}
+                          className="w-full h-10.5 px-3 text-sm border border-[#84888c] bg-transparent rounded-xs text-white placeholder:text-[#84888c] file:border-0 file:bg-transparent focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-1 focus-visible:ring-[#FE810B] disabled:cursor-not-allowed disabled:opacity-50 box-border appearance-none"
+                        />
+                      </div>
+                    )}
+                  </form.Field>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-t-white/10 bg-[#131516] p-4">
-          <button
-            type="submit"
-            className="flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-white/60 bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B] text-base font-bold text-white shadow-[0_3px_0_0_#963000] transition-all active:translate-y-0.5"
+          <form.Subscribe
+            selector={(state) => ({
+              disabled: !state.isValid || state.isSubmitting,
+            })}
           >
-            创建代币
-          </button>
+            {({ disabled }) => (
+              <button
+                type="submit"
+                disabled={disabled}
+                className="flex h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-white/60 bg-linear-to-r from-[#FE810B] via-[#FFA546] to-[#FE810B] text-base font-bold text-white shadow-[0_3px_0_0_#963000] transition-all active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+              >
+                创建代币
+              </button>
+            )}
+          </form.Subscribe>
         </div>
       </form>
-    </div>
+    </>
   )
 }
