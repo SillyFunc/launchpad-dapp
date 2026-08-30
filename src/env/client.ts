@@ -5,8 +5,8 @@ export const env = createEnv({
   clientPrefix: 'VITE_',
   server: {},
   client: {
-    VITE_WALLET_APP_NAME: z.string(),
-    VITE_WALLET_PROJECT_ID: z.string(),
+    VITE_APP_WALLET_APP_NAME: z.string(),
+    VITE_APP_WALLET_PROJECT_ID: z.string(),
   },
   runtimeEnv: import.meta.env,
 })
